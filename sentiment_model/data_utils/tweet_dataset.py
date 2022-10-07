@@ -105,26 +105,3 @@ def pad_batch(tweet_batch):
     x_pad = pad_sequence(x, batch_first=True, padding_value=0)
 
     return x_pad, torch.tensor(y), torch.tensor(x_lens)
-
-
-train_dataset = TweetDataset(split="train")
-
-for i in range(len(train_dataset)):
-    x_t, y = train_dataset[i]
-
-    if ((x_t > 0).sum() == 0).item():
-        print(train_dataset.X[i])
-
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False, collate_fn=pad_batch)
-for i, (x_pad_i, y_i, x_len_i) in enumerate(train_loader):
-    if 0 in x_len_i:
-        print(i)
-        print(x_len_i)
-        print((x_len_i == 0).nonzero())
-        print(x_pad_i[(x_len_i == 0).nonzero()])
-
-# batch_n = 516*32
-# batch_idx = 27
-# print(train_dataset[batch_n+batch_idx])
-# print(train_dataset.X[batch_n+batch_idx])
-
