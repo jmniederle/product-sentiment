@@ -4,8 +4,15 @@ import torch
 
 
 class SentimentNet(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, rnn_hidden_dim, rnn_n_layers, rnn_bidirectional, dropout_rate,
-                 num_classes, pad_idx=0):
+    def __init__(self,
+                 vocab_size=34096,
+                 embedding_dim=128,
+                 rnn_hidden_dim=256,
+                 rnn_n_layers=2,
+                 rnn_bidirectional=True,
+                 dropout_rate=0.5,
+                 num_classes=3,
+                 pad_idx=0):
         super().__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
@@ -50,6 +57,9 @@ class SentimentNet(nn.Module):
         out = self.mlp(final_hidden)
         return out
 
+
 # TODO: add GLOVE embedding
+# TODO: battle overfitting
+
 
 

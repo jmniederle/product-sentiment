@@ -28,12 +28,11 @@ def run_training(
         bidirectional: bool = True,
         num_classes: int = 3,
         activation_fn: str = "relu",
-        dropout: float = 0.3,
+        dropout: float = 0.5,
         optimizer: str = "Adam",
-        gui: bool = False,
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
-        data_path: Path = Path("./data.pkl")
+        save_checkpoint: bool = False,
 ):
     config = {"lr": lr,
               "epochs": epochs,
@@ -72,13 +71,9 @@ def run_training(
     }
     optimizer = optimizer_map[optimizer](model.parameters(), lr=lr)
 
-    # batch_i = next(iter(train_loader))
-    # batch_i_out = sentiment_net(batch_i[0], batch_i[2])
-    # print(batch_i_out)
-
     train(model, loss_fn, optimizer, train_loader, valid_loader,
           epochs=epochs, logging_freq=logging_freq, logging=run,
-          device=device, checkpoint_path=checkpoint_path)
+          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint)
 
 
 run_training()
