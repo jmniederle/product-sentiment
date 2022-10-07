@@ -58,8 +58,6 @@ class SentimentNet(nn.Module):
         return out
 
 
-# TODO: add GLOVE embedding
+# TODO: add load_pretrained functionality to load glove embedding
 # TODO: battle overfitting
-
-
-
+# TODO: maybe try fasttext

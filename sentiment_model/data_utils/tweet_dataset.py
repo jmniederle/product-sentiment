@@ -3,7 +3,7 @@ import spacy
 import numpy as np
 from torchtext.datasets import AG_NEWS
 from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator
+from torchtext.vocab import build_vocab_from_iterator, vectors, vocab, GloVe
 from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchtext import data
@@ -17,7 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class TweetDataset(Dataset):
     """Tweet Dataset """
 
-    def __init__(self, split="train", tokenizer=None):
+    def __init__(self, split="train", tokenizer=None, pretrained_vecs=None):
         """
         Create a dataset using the HuggingFace dataset tweet_sentiment_extraction.
 
@@ -32,6 +32,7 @@ class TweetDataset(Dataset):
         self.X, self.y = self.get_split_data()
         self.filter_empty_strings()
         self.tokenizer = get_tokenizer("spacy", language="en_core_web_sm") if not tokenizer else tokenizer
+        self.pretrained_vecs = pretrained_vecs
         self.vocab = self.build_vocab()
 
     def get_split_data(self):
@@ -70,13 +71,25 @@ class TweetDataset(Dataset):
         Returns: vocabulary
         """
 
-        def yield_tokens(data_iter):
-            for t in data_iter:
-                yield self.tokenizer(t)
+        if self.pretrained_vecs is not None:
+            pretrained_vocab = vocab(self.pretrained_vecs.stoi)
 
-        vocab = build_vocab_from_iterator(yield_tokens(self.tweet_data['train']['text']))
+            # insert and set a token and idx for unknown characters
+            unk_token = "<unk>"
+            unk_index = 0
+            pretrained_vocab.insert_token(unk_token, unk_index)
+            pretrained_vocab.set_default_index(unk_index)
 
-        return vocab
+            return pretrained_vocab
+
+        else:
+            def yield_tokens(data_iter):
+                for t in data_iter:
+                    yield self.tokenizer(t)
+
+            built_vocab = build_vocab_from_iterator(yield_tokens(self.tweet_data['train']['text']))
+
+            return built_vocab
 
     def __len__(self):
         return len(self.X)
@@ -92,7 +105,11 @@ class TweetDataset(Dataset):
         """
 
         def text_pipeline(x):
-            return self.vocab(self.tokenizer(x))
+            if self.pretrained_vecs is not None:
+                return self.vocab(self.tokenizer(x.lower()))
+
+            else:
+                return self.vocab(self.tokenizer(x))
 
         text = text_pipeline(self.X[idx])
         label = self.y[idx]
@@ -105,3 +122,5 @@ def pad_batch(tweet_batch):
     x_pad = pad_sequence(x, batch_first=True, padding_value=0)
 
     return x_pad, torch.tensor(y), torch.tensor(x_lens)
+
+# TODO: verify dataset with and without pretrained GLove is working
