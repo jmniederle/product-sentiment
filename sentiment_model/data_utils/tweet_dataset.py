@@ -30,6 +30,7 @@ class TweetDataset(Dataset):
         self.split = split
         self.tweet_data = load_dataset("SetFit/tweet_sentiment_extraction")
         self.X, self.y = self.get_split_data()
+        self.filter_empty_strings()
         self.tokenizer = get_tokenizer("spacy", language="en_core_web_sm") if not tokenizer else tokenizer
         self.vocab = self.build_vocab()
 
@@ -51,6 +52,17 @@ class TweetDataset(Dataset):
 
         else:
             raise ValueError(f"Invalid split {self.split}")
+
+    def filter_empty_strings(self):
+        """
+        Remove empty strings and their corresponding label from the dataset
+        Returns:
+
+        """
+        for idx, text in enumerate(self.X):
+            if len(text) == 0:
+                del self.X[idx]
+                del self.y[idx]
 
     def build_vocab(self):
         """
@@ -94,4 +106,25 @@ def pad_batch(tweet_batch):
 
     return x_pad, torch.tensor(y), torch.tensor(x_lens)
 
+
+train_dataset = TweetDataset(split="train")
+
+for i in range(len(train_dataset)):
+    x_t, y = train_dataset[i]
+
+    if ((x_t > 0).sum() == 0).item():
+        print(train_dataset.X[i])
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False, collate_fn=pad_batch)
+for i, (x_pad_i, y_i, x_len_i) in enumerate(train_loader):
+    if 0 in x_len_i:
+        print(i)
+        print(x_len_i)
+        print((x_len_i == 0).nonzero())
+        print(x_pad_i[(x_len_i == 0).nonzero()])
+
+# batch_n = 516*32
+# batch_idx = 27
+# print(train_dataset[batch_n+batch_idx])
+# print(train_dataset.X[batch_n+batch_idx])
 
