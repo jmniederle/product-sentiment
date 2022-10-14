@@ -21,7 +21,8 @@ def train(
         logging: RunLogger,
         device: torch.device,
         checkpoint_path: Path,
-        save_checkpoint: bool
+        save_checkpoint: bool,
+        config: Dict,
 ):
     """Training loop with included validation at the end of each epoch.
 
@@ -99,7 +100,8 @@ def train(
                             "optimizer_state_dict": optimizer.state_dict(),
                             "epoch": epoch,
                             "train_metrics": None,
-                            "valid_metrics": None
+                            "valid_metrics": None,
+                            "config": config,
                         }, checkpoint_path / f"{logging.name}" / f"{logging.name}-epoch-{epoch}.pth")
 
             if device == "cuda":

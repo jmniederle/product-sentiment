@@ -13,12 +13,14 @@ class SentimentNet(nn.Module):
                  dropout_rate=0.5,
                  num_classes=3,
                  pad_idx=0,
-                 pretrained_embeddings=None):
+                 pretrained_embeddings=None,
+                 freeze_embed=True):
         super().__init__()
 
         if pretrained_embeddings is not None:
-            self.embedding = nn.Embedding.from_pretrained(pretrained_embeddings, sparse=True)
+            self.embedding = nn.Embedding.from_pretrained(pretrained_embeddings, sparse=False, freeze=freeze_embed)
             self.embedding_dim = pretrained_embeddings.shape[1]
+            assert self.embedding.weight.shape == pretrained_embeddings.shape
 
         else:
             self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
@@ -30,6 +32,12 @@ class SentimentNet(nn.Module):
         rnn_hidden_output_size = rnn_hidden_dim * 2 if rnn_bidirectional else rnn_hidden_dim
 
         self.mlp = nn.Sequential(
+            nn.Linear(rnn_hidden_output_size, rnn_hidden_output_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(rnn_hidden_output_size, rnn_hidden_output_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
             nn.Linear(rnn_hidden_output_size, rnn_hidden_output_size),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
@@ -65,7 +73,7 @@ class SentimentNet(nn.Module):
         return out
 
 
-# TODO: add load_pretrained functionality to load glove embedding
+# TODO: try using mean embedding for unknown tokens instead of zeros
 # TODO: battle overfitting
 # TODO: maybe try fasttext
 

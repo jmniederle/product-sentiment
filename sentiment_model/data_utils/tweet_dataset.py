@@ -46,7 +46,7 @@ class TweetDataset(Dataset):
                                                                   test_size=0.2, random_state=42)
 
             if self.split == "train":
-                return X_train, y_train
+                return X_train[:500], y_train[:500]
 
             else:
                 return X_valid, y_valid

@@ -19,10 +19,10 @@ from model import SentimentNet
 
 
 def run_training(
-        batch_size: int = 64,
+        batch_size: int = 16,
         lr: float = 0.001,
         epochs: int = 15,
-        embedding_dim: int = 128,
+        embedding_dim: int = 50,
         hidden_dim: int = 256,
         n_layers: int = 2,
         bidirectional: bool = True,
@@ -30,6 +30,7 @@ def run_training(
         activation_fn: str = "relu",
         dropout: float = 0.5,
         optimizer: str = "Adam",
+        freeze_embed: bool = True,
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
         save_checkpoint: bool = False,
@@ -43,15 +44,17 @@ def run_training(
               "rnn_hidden_dim": hidden_dim,
               "rnn_n_layers": n_layers,
               "rnn_bidirectional": bidirectional,
-              "dropout": dropout}
+              "dropout": dropout,
+              "freeze_embed": freeze_embed}
 
     run = wandb.init(project="product-sentiment", entity="jmniederle", config=config)
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = "cpu"
 
     # Import GloVe Embeddings
-    glove_twitter = GloVe(name="twitter.27B", dim=50)
+    glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
 
     # Instantiate vectors and ensure a 0 vector is inserted for unknown characters and padded characters
     pre_embeds = glove_twitter.vectors
@@ -68,7 +71,8 @@ def run_training(
     # Initialize model
     model = SentimentNet(vocab_size=len(train_dataset.vocab), embedding_dim=embedding_dim,
                          rnn_hidden_dim=hidden_dim, rnn_n_layers=n_layers, rnn_bidirectional=bidirectional,
-                         dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds)
+                         dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds,
+                         freeze_embed=freeze_embed)
 
     # Initialize loss and optimizer
     loss_fn = nn.CrossEntropyLoss()
@@ -80,7 +84,7 @@ def run_training(
 
     train(model, loss_fn, optimizer, train_loader, valid_loader,
           epochs=epochs, logging_freq=logging_freq, logging=run,
-          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint)
+          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint, config=config)
 
 
 run_training()
