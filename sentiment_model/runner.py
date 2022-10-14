@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import wandb
 from torch.utils.data import DataLoader
-
+from torchtext.vocab import build_vocab_from_iterator, vectors, vocab, GloVe
 from torch.optim import Adam, SGD
 import torch.nn as nn
 from train import train
@@ -50,9 +50,16 @@ def run_training(
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Import GloVe Embeddings
+    glove_twitter = GloVe(name="twitter.27B", dim=50)
+
+    # Instantiate vectors and ensure a 0 vector is inserted for unknown characters and padded characters
+    pre_embeds = glove_twitter.vectors
+    pre_embeds = torch.cat((torch.zeros(2, pre_embeds.shape[1]), pre_embeds))
+
     # Load data:
-    train_dataset = TweetDataset(split="train")
-    valid_dataset = TweetDataset(split="valid")
+    train_dataset = TweetDataset(split="train", pretrained_vecs=glove_twitter)
+    valid_dataset = TweetDataset(split="valid", pretrained_vecs=glove_twitter)
 
     # Create data loaders:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)
@@ -60,8 +67,8 @@ def run_training(
 
     # Initialize model
     model = SentimentNet(vocab_size=len(train_dataset.vocab), embedding_dim=embedding_dim,
-                                 rnn_hidden_dim=hidden_dim, rnn_n_layers=n_layers, rnn_bidirectional=bidirectional,
-                                 dropout_rate=dropout, num_classes=num_classes)
+                         rnn_hidden_dim=hidden_dim, rnn_n_layers=n_layers, rnn_bidirectional=bidirectional,
+                         dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds)
 
     # Initialize loss and optimizer
     loss_fn = nn.CrossEntropyLoss()

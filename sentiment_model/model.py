@@ -12,12 +12,19 @@ class SentimentNet(nn.Module):
                  rnn_bidirectional=True,
                  dropout_rate=0.5,
                  num_classes=3,
-                 pad_idx=0):
+                 pad_idx=0,
+                 pretrained_embeddings=None):
         super().__init__()
 
-        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
+        if pretrained_embeddings is not None:
+            self.embedding = nn.Embedding.from_pretrained(pretrained_embeddings, sparse=True)
+            self.embedding_dim = pretrained_embeddings.shape[1]
 
-        self.rnn = nn.LSTM(embedding_dim, rnn_hidden_dim, rnn_n_layers, bidirectional=rnn_bidirectional,
+        else:
+            self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
+            self.embedding_dim = embedding_dim
+
+        self.rnn = nn.LSTM(self.embedding_dim, rnn_hidden_dim, rnn_n_layers, bidirectional=rnn_bidirectional,
                            dropout=dropout_rate, batch_first=True)
 
         rnn_hidden_output_size = rnn_hidden_dim * 2 if rnn_bidirectional else rnn_hidden_dim
@@ -61,3 +68,4 @@ class SentimentNet(nn.Module):
 # TODO: add load_pretrained functionality to load glove embedding
 # TODO: battle overfitting
 # TODO: maybe try fasttext
+

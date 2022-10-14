@@ -72,11 +72,14 @@ class TweetDataset(Dataset):
         """
 
         if self.pretrained_vecs is not None:
-            pretrained_vocab = vocab(self.pretrained_vecs.stoi)
+            pretrained_vocab = vocab(self.pretrained_vecs.stoi, min_freq=0)
 
             # insert and set a token and idx for unknown characters
+            pad_index = 0
+            pad_token = "<pad>"
+            pretrained_vocab.insert_token(pad_token, pad_index)
             unk_token = "<unk>"
-            unk_index = 0
+            unk_index = 1
             pretrained_vocab.insert_token(unk_token, unk_index)
             pretrained_vocab.set_default_index(unk_index)
 
