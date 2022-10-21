@@ -19,7 +19,7 @@ from model import SentimentNet
 
 
 def run_training(
-        batch_size: int = 16,
+        batch_size: int = 32,
         lr: float = 0.001,
         epochs: int = 15,
         embedding_dim: int = 50,
@@ -33,7 +33,7 @@ def run_training(
         freeze_embed: bool = True,
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
-        save_checkpoint: bool = False,
+        save_checkpoint: bool = True,
 ):
     config = {"lr": lr,
               "epochs": epochs,
@@ -47,7 +47,12 @@ def run_training(
               "dropout": dropout,
               "freeze_embed": freeze_embed}
 
-    run = wandb.init(project="product-sentiment", entity="jmniederle", config=config)
+    with open('wandb_user_name.txt') as f:
+        lines = f.read()
+        user_name = lines.split('\n', 1)[0]
+        print(user_name)
+
+    run = wandb.init(project="product-sentiment", entity=user_name, config=config)
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

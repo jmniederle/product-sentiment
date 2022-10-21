@@ -74,6 +74,6 @@ class SentimentNet(nn.Module):
 
 
 # TODO: try using mean embedding for unknown tokens instead of zeros
-# TODO: battle overfitting
+# TODO: fix error when unfreezing embeddings
 # TODO: maybe try fasttext
 

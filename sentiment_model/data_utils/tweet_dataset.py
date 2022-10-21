@@ -1,3 +1,5 @@
+import re
+
 import torch
 import spacy
 import numpy as np
@@ -46,7 +48,7 @@ class TweetDataset(Dataset):
                                                                   test_size=0.2, random_state=42)
 
             if self.split == "train":
-                return X_train[:500], y_train[:500]
+                return X_train, y_train
 
             else:
                 return X_valid, y_valid
@@ -97,6 +99,13 @@ class TweetDataset(Dataset):
     def __len__(self):
         return len(self.X)
 
+    def text_pipeline(self, x):
+        if self.pretrained_vecs is not None:
+            return self.vocab(process_token_list(self.tokenizer(x.lower())))
+
+        else:
+            return self.vocab(process_token_list(self.tokenizer(x)))
+
     def __getitem__(self, idx):
         """
         Returns the text and label for a given index.
@@ -107,16 +116,52 @@ class TweetDataset(Dataset):
 
         """
 
-        def text_pipeline(x):
-            if self.pretrained_vecs is not None:
-                return self.vocab(self.tokenizer(x.lower()))
-
-            else:
-                return self.vocab(self.tokenizer(x))
-
-        text = text_pipeline(self.X[idx])
+        text = self.text_pipeline(self.X[idx])
         label = self.y[idx]
         return torch.tensor(text), label
+
+
+class TweetDatasetInference(Dataset):
+    """Tweet Dataset """
+
+    def __init__(self, tweets, train_pipeline):
+        """
+        Create a dataset using the HuggingFace dataset tweet_sentiment_extraction.
+
+        Text is tokenized and converted to a vocabulary index.
+
+        Args:
+            split: choose train or test split
+        """
+        self.X = tweets
+        self.filter_empty_strings()
+        self.text_pipeline = train_pipeline
+
+    def filter_empty_strings(self):
+        """
+        Remove empty strings and their corresponding label from the dataset
+        Returns:
+
+        """
+        for idx, text in enumerate(self.X):
+            if len(text) == 0:
+                del self.X[idx]
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        """
+        Returns the text and label for a given index.
+        Args:
+            idx: index of sample
+
+        Returns: tokenized text and label
+
+        """
+
+        text = self.text_pipeline(self.X[idx])
+        return torch.tensor(text)
 
 
 def pad_batch(tweet_batch):
@@ -125,5 +170,46 @@ def pad_batch(tweet_batch):
     x_pad = pad_sequence(x, batch_first=True, padding_value=0)
 
     return x_pad, torch.tensor(y), torch.tensor(x_lens)
+
+def pad_batch_inference(tweet_batch):
+    x_lens = [len(x_i) for x_i in tweet_batch]
+    x_pad = pad_sequence(tweet_batch, batch_first=True, padding_value=0)
+
+    return x_pad, torch.tensor(x_lens)
+
+
+def process_token(token):
+
+    # Different regex parts for smiley faces
+    eyes = r"[8:=;]"
+    nose = r"['`\-]?"
+
+    def re_sub(pattern, repl, text):
+        return re.sub(pattern, repl, text)
+
+    # Match url
+    token = re_sub(r"https?:\/\/\S+\b|www\.(\w+\.)+\S*", "<url>", token)
+
+    # Match user
+    token = re_sub(r"@\w+", "<user>", token)
+
+    # Match smileys
+    token = re_sub(r"{}{}[)dD]+|[)dD]+{}{}".format(eyes, nose, nose, eyes), "<smile>", token)
+    token = re_sub(r"{}{}p+".format(eyes, nose), "<lolface>", token)
+    token = re_sub(r"{}{}\(+|\)+{}{}".format(eyes, nose, nose, eyes), "<sadface>", token)
+    token = re_sub(r"{}{}[\/|l*]".format(eyes, nose), "<neutralface>", token)
+    token = re_sub(r"<3","<heart>", token)
+
+    # Match number
+    token = re_sub(r"[-+]?[.\d]*[\d]+[:,.\d]*", "<number>", token)
+
+    # Match hashtag
+    token = re_sub(r"#", "<hashtag>", token)
+    return token
+
+
+def process_token_list(tokens):
+    return [process_token(t) for t in tokens]
+
 
 # TODO: verify dataset with and without pretrained GLove is working
