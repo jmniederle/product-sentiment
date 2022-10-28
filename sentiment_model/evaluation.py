@@ -5,10 +5,10 @@ import torch
 from torch.utils.data import DataLoader
 from torchtext.vocab import GloVe
 
-from data_utils.metrics import accuracy
-from data_utils.tweet_dataset import TweetDataset, pad_batch
-from model import SentimentNet
-
+from sentiment_model.data_utils.metrics import accuracy
+from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
+from sentiment_model.model import SentimentNet
+from utils import get_project_root
 
 def run_evaluation(
         batch_size: int = 16,
@@ -21,7 +21,6 @@ def run_evaluation(
         num_classes: int = 3,
         dropout: float = 0.5,
         freeze_embed: bool = False,
-        checkpoint_path: Path = Path("checkpoints/"),
         model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth"
 ):
 
@@ -29,7 +28,8 @@ def run_evaluation(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Import GloVe Embeddings
-    glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
+    cache_path = os.path.join(get_project_root(), Path("sentiment_model/.vector_cache/"))
+    glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim, cache=cache_path)
 
     # Instantiate vectors and ensure a 0 vector is inserted for unknown characters and padded characters
     pre_embeds = glove_twitter.vectors
@@ -41,6 +41,7 @@ def run_evaluation(
     # Create data loaders:
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=pad_batch)
 
+    checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
     model_path = os.path.join(checkpoint_path, Path(model_file))
 
     # Load checkpoint:
@@ -56,6 +57,7 @@ def run_evaluation(
     model.to(device)
 
     test_out = torch.tensor([]).to(device)
+    test_target = torch.tensor([]).to(device)
 
     # Validation
     model.eval()
@@ -67,11 +69,12 @@ def run_evaluation(
             output = model(data, text_lengths)
 
             test_out = torch.cat((test_out, output))
+            test_target = torch.cat((test_target, target))
 
-    acc = accuracy(test_out, target)
+    acc = accuracy(test_out, test_target)
     print(f"Test set accuracy: {acc}")
 
-    return test_out.numpy()
+    return test_out.cpu().numpy(), test_target.cpu().numpy()
 
 
 if __name__ == "__main__":

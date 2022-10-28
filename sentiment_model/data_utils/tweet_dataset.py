@@ -101,10 +101,10 @@ class TweetDataset(Dataset):
 
     def text_pipeline(self, x):
         if self.pretrained_vecs is not None:
-            return self.vocab(process_token_list(self.tokenizer(x.lower())))
+            return self.vocab(process_token_list(tokenize(x, tokenizer=self.tokenizer, lower=True)))
 
         else:
-            return self.vocab(process_token_list(self.tokenizer(x)))
+            return self.vocab(tokenize(x, tokenizer=self.tokenizer, lower=False))
 
     def __getitem__(self, idx):
         """
@@ -171,6 +171,7 @@ def pad_batch(tweet_batch):
 
     return x_pad, torch.tensor(y), torch.tensor(x_lens)
 
+
 def pad_batch_inference(tweet_batch):
     x_lens = [len(x_i) for x_i in tweet_batch]
     x_pad = pad_sequence(tweet_batch, batch_first=True, padding_value=0)
@@ -179,7 +180,6 @@ def pad_batch_inference(tweet_batch):
 
 
 def process_token(token):
-
     # Different regex parts for smiley faces
     eyes = r"[8:=;]"
     nose = r"['`\-]?"
@@ -198,7 +198,7 @@ def process_token(token):
     token = re_sub(r"{}{}p+".format(eyes, nose), "<lolface>", token)
     token = re_sub(r"{}{}\(+|\)+{}{}".format(eyes, nose, nose, eyes), "<sadface>", token)
     token = re_sub(r"{}{}[\/|l*]".format(eyes, nose), "<neutralface>", token)
-    token = re_sub(r"<3","<heart>", token)
+    token = re_sub(r"<3", "<heart>", token)
 
     # Match number
     token = re_sub(r"[-+]?[.\d]*[\d]+[:,.\d]*", "<number>", token)
@@ -208,8 +208,16 @@ def process_token(token):
     return token
 
 
+def tokenize(x, tokenizer=None, lower=True):
+    tokenizer = get_tokenizer("spacy", language="en_core_web_sm") if not tokenizer else tokenizer
+
+    if lower:
+        return tokenizer(x.lower())
+    else:
+        return tokenizer(x)
+
+
 def process_token_list(tokens):
     return [process_token(t) for t in tokens]
-
 
 # TODO: verify dataset with and without pretrained GLove is working
