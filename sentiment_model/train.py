@@ -9,7 +9,6 @@ from tqdm import tqdm
 from wandb.wandb_run import Run as RunLogger
 from data_utils.metrics import accuracy
 
-
 def train(
         model: nn.Module,
         loss_fn: nn.Module,

@@ -1,19 +1,11 @@
-from argparse import ArgumentParser
-import sys
-
+import os
 from pathlib import Path
 
-import numpy as np
-import wandb
-from torch.utils.data import DataLoader
-from torchtext.vocab import build_vocab_from_iterator, vectors, vocab, GloVe
-from torch.optim import Adam, SGD
-import torch.nn as nn
-from train import train
-import wandb as experiment_logger
-
 import torch
+from torch.utils.data import DataLoader
+from torchtext.vocab import GloVe
 
+from data_utils.metrics import accuracy
 from data_utils.tweet_dataset import TweetDataset, pad_batch
 from model import SentimentNet
 
@@ -27,29 +19,14 @@ def run_evaluation(
         n_layers: int = 2,
         bidirectional: bool = True,
         num_classes: int = 3,
-        activation_fn: str = "relu",
         dropout: float = 0.5,
-        optimizer: str = "Adam",
         freeze_embed: bool = False,
-        logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
-        save_checkpoint: bool = False,
+        model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth"
 ):
-    config = {"lr": lr,
-              "epochs": epochs,
-              "batch_size": batch_size,
-              "optimizer": optimizer,
-              "activation_fn": activation_fn,
-              "embedding_dim": embedding_dim,
-              "rnn_hidden_dim": hidden_dim,
-              "rnn_n_layers": n_layers,
-              "rnn_bidirectional": bidirectional,
-              "dropout": dropout,
-              "freeze_embed": freeze_embed}
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
     # Import GloVe Embeddings
     glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
@@ -62,10 +39,12 @@ def run_evaluation(
     test_dataset = TweetDataset(split="test", pretrained_vecs=glove_twitter)
 
     # Create data loaders:
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=pad_batch)
+
+    model_path = os.path.join(checkpoint_path, Path(model_file))
 
     # Load checkpoint:
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(model_path)
 
     # Initialize model
     model = SentimentNet(vocab_size=len(test_dataset.vocab), embedding_dim=embedding_dim,
@@ -73,14 +52,27 @@ def run_evaluation(
                          dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds,
                          freeze_embed=freeze_embed)
 
-
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
 
+    test_out = torch.tensor([]).to(device)
+
+    # Validation
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, (data, target, text_lengths) in enumerate(test_loader):
+            data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
+
+            # Forward pass
+            output = model(data, text_lengths)
+
+            test_out = torch.cat((test_out, output))
+
+    acc = accuracy(test_out, target)
+    print(f"Test set accuracy: {acc}")
+
+    return test_out.numpy()
 
 
-    train(model, loss_fn, optimizer, train_loader, valid_loader,
-          epochs=epochs, logging_freq=logging_freq, logging=run,
-          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint)
-
-
-run_training()
+if __name__ == "__main__":
+    run_evaluation()

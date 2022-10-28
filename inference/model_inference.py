@@ -3,10 +3,15 @@ from sentiment_model.model import SentimentNet
 from torch.nn import Softmax
 from tqdm import tqdm
 import numpy as np
+from utils import get_project_root
+from pathlib import Path
+import os
 
 
-def load_model_for_inference(model_file, checkpoint_path = "../sentiment_model/checkpoints/", device="cpu"):
-    checkpoint = torch.load(str(checkpoint_path) + model_file)
+def load_model_for_inference(model_file, device="cpu"):
+    checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
+    model_path = os.path.join(checkpoint_path, Path(model_file))
+    checkpoint = torch.load(model_path)
     sentiment_net = SentimentNet(vocab_size=1193516, embedding_dim=50)
     sentiment_net.load_state_dict(checkpoint['model_state_dict'])
     sentiment_net.to(device)
