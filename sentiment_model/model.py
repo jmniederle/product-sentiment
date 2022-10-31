@@ -70,6 +70,7 @@ class SentimentNet(nn.Module):
         # shape [batch_size, hidden_dim * num_directions]
 
         out = self.mlp(final_hidden)
+
         return out
 
 

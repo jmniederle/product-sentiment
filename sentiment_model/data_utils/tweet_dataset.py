@@ -19,7 +19,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class TweetDataset(Dataset):
     """Tweet Dataset """
 
-    def __init__(self, split="train", tokenizer=None, pretrained_vecs=None):
+    def __init__(self, dataset="sent_ex", split="train", tokenizer=None, pretrained_vecs=None):
         """
         Create a dataset using the HuggingFace dataset tweet_sentiment_extraction.
 
@@ -30,22 +30,39 @@ class TweetDataset(Dataset):
         """
 
         self.split = split
-        self.tweet_data = load_dataset("SetFit/tweet_sentiment_extraction")
+        self.dataset_name = dataset
+        self.tweet_data = self.load_data()
         self.X, self.y = self.get_split_data()
         self.filter_empty_strings()
         self.tokenizer = get_tokenizer("spacy", language="en_core_web_sm") if not tokenizer else tokenizer
         self.pretrained_vecs = pretrained_vecs
         self.vocab = self.build_vocab()
 
+    def load_data(self):
+        if self.dataset_name == "sent_ex":
+            return load_dataset("SetFit/tweet_sentiment_extraction")
+
+        elif self.dataset_name == "sent140":
+            return load_dataset("sentiment140")
+
     def get_split_data(self):
 
         if self.split == "test":
-            return self.tweet_data['test']['text'], self.tweet_data['test']['label']
+            if self.dataset_name == "sent_ex":
+                return self.tweet_data['test']['text'], self.tweet_data['test']['label']
+
+            elif self.dataset_name == "sent140":
+                return self.tweet_data['test']['text'], self.tweet_data['test']['sentiment']
 
         elif (self.split == "valid") or (self.split == "train"):
-            X_train, X_valid, y_train, y_valid = train_test_split(self.tweet_data['train']['text'],
-                                                                  self.tweet_data['train']['label'],
-                                                                  test_size=0.2, random_state=42)
+            if self.dataset_name == "sent_ex":
+                X_train, X_valid, y_train, y_valid = train_test_split(self.tweet_data['train']['text'],
+                                                                      self.tweet_data['train']['label'],
+                                                                      test_size=0.2, random_state=42)
+            elif self.dataset_name == "sent140":
+                X_train, X_valid, y_train, y_valid = train_test_split(self.tweet_data['train']['text'],
+                                                                      self.tweet_data['train']['sentiment'],
+                                                                      test_size=0.2, random_state=42)
 
             if self.split == "train":
                 return X_train, y_train
@@ -106,6 +123,20 @@ class TweetDataset(Dataset):
         else:
             return self.vocab(tokenize(x, tokenizer=self.tokenizer, lower=False))
 
+    def label_pipeline(self, y):
+        if self.dataset_name == "sent_ex":
+            return int(y)
+
+        elif self.dataset_name == "sent140":
+            if y == 4:
+                return 1
+
+            elif y == 2:
+                return 0.5
+
+            elif y == 0:
+                return 0
+
     def __getitem__(self, idx):
         """
         Returns the text and label for a given index.
@@ -117,7 +148,7 @@ class TweetDataset(Dataset):
         """
 
         text = self.text_pipeline(self.X[idx])
-        label = self.y[idx]
+        label = self.label_pipeline(self.y[idx])
         return torch.tensor(text), label
 
 
@@ -221,3 +252,10 @@ def process_token_list(tokens):
     return [process_token(t) for t in tokens]
 
 # TODO: verify dataset with and without pretrained GLove is working
+# TODO: add sentiment140 to dataset and retrain model
+# TODO: make Dutch sentiment model
+
+
+if __name__ == "__main__":
+    train_dataset = TweetDataset(split="train", dataset="sent140", pretrained_vecs=None)
+    print(len(train_dataset))

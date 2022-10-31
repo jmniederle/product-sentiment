@@ -26,14 +26,14 @@ def run_training(
         hidden_dim: int = 256,
         n_layers: int = 2,
         bidirectional: bool = True,
-        num_classes: int = 3,
         activation_fn: str = "relu",
         dropout: float = 0.5,
         optimizer: str = "Adam",
         freeze_embed: bool = True,
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
-        save_checkpoint: bool = True,
+        save_checkpoint: bool = False,
+        dataset_name: str = "sent140"
 ):
     config = {"lr": lr,
               "epochs": epochs,
@@ -56,7 +56,7 @@ def run_training(
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = "cpu"
+    device = "cpu"
 
     # Import GloVe Embeddings
     glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
@@ -66,12 +66,20 @@ def run_training(
     pre_embeds = torch.cat((torch.zeros(2, pre_embeds.shape[1]), pre_embeds))
 
     # Load data:
-    train_dataset = TweetDataset(split="train", pretrained_vecs=glove_twitter)
-    valid_dataset = TweetDataset(split="valid", pretrained_vecs=glove_twitter)
+    train_dataset = TweetDataset(split="train", dataset=dataset_name, pretrained_vecs=glove_twitter)
+    valid_dataset = TweetDataset(split="valid", dataset=dataset_name, pretrained_vecs=glove_twitter)
 
     # Create data loaders:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)
+
+    if dataset_name == "sent_ex":
+        num_classes = 3
+        loss_fn = nn.CrossEntropyLoss()
+
+    elif dataset_name == "sent140":
+        num_classes = 1
+        loss_fn = nn.BCEWithLogitsLoss()
 
     # Initialize model
     model = SentimentNet(vocab_size=len(train_dataset.vocab), embedding_dim=embedding_dim,
@@ -80,7 +88,7 @@ def run_training(
                          freeze_embed=freeze_embed)
 
     # Initialize loss and optimizer
-    loss_fn = nn.CrossEntropyLoss()
+
     optimizer_map = {
         "Adam": Adam,
         "SGD": SGD,
@@ -89,7 +97,8 @@ def run_training(
 
     train(model, loss_fn, optimizer, train_loader, valid_loader,
           epochs=epochs, logging_freq=logging_freq, logging=run,
-          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint, config=config)
+          device=device, checkpoint_path=checkpoint_path, save_checkpoint=save_checkpoint, num_classes=num_classes,
+          config=config)
 
 
 run_training()

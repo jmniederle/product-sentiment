@@ -21,6 +21,7 @@ def train(
         device: torch.device,
         checkpoint_path: Path,
         save_checkpoint: bool,
+        num_classes: int,
         config: Dict,
 ):
     """Training loop with included validation at the end of each epoch.
@@ -45,6 +46,10 @@ def train(
 
             # Forward pass
             output = model(data, text_lengths)
+
+            if num_classes == 1:
+                target = target.unsqueeze(1).float()
+
             loss = loss_fn(output, target)
 
             # Backward pass
