@@ -79,6 +79,10 @@ def train(
 
                 # Forward pass
                 output = model(data, text_lengths)
+
+                if num_classes == 1:
+                    target = target.unsqueeze(1).float()
+
                 loss = loss_fn(output, target)
 
                 last_valid_loss = loss.data
