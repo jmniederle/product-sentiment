@@ -9,6 +9,7 @@ from sentiment_model.data_utils.metrics import accuracy, MAE
 from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
 from sentiment_model.model import SentimentNet
 from utils import get_project_root
+import numpy as np
 
 
 def run_evaluation(
@@ -80,7 +81,14 @@ def run_evaluation(
     elif dataset == "sent140":
         mae = MAE(test_out, test_target)
         print(f"MAE: {mae.item()}")
+        test_targets_bin = test_target.cpu().numpy()
 
+        out = test_out.cpu().reshape(-1).numpy()
+        out = out[test_targets_bin != 0.5]
+
+        test_targets_bin = test_targets_bin[test_targets_bin != 0.5]
+
+        print(np.mean((out >= 0.5).astype(float) == test_targets_bin))
     return test_out.cpu().numpy(), test_target.cpu().numpy()
 
 
