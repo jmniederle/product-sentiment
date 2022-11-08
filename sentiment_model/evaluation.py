@@ -5,10 +5,11 @@ import torch
 from torch.utils.data import DataLoader
 from torchtext.vocab import GloVe
 
-from sentiment_model.data_utils.metrics import accuracy
+from sentiment_model.data_utils.metrics import accuracy, MAE
 from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
 from sentiment_model.model import SentimentNet
 from utils import get_project_root
+
 
 def run_evaluation(
         batch_size: int = 16,
@@ -21,7 +22,8 @@ def run_evaluation(
         num_classes: int = 3,
         dropout: float = 0.5,
         freeze_embed: bool = False,
-        model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth"
+        model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth",
+        dataset="sent_ex"
 ):
 
     # Set device:
@@ -36,7 +38,7 @@ def run_evaluation(
     pre_embeds = torch.cat((torch.zeros(2, pre_embeds.shape[1]), pre_embeds))
 
     # Load data:
-    test_dataset = TweetDataset(split="test", pretrained_vecs=glove_twitter)
+    test_dataset = TweetDataset(dataset=dataset, split="test", pretrained_vecs=glove_twitter)
 
     # Create data loaders:
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=pad_batch)
@@ -67,15 +69,21 @@ def run_evaluation(
 
             # Forward pass
             output = model(data, text_lengths)
-
+            output = torch.sigmoid(output)
             test_out = torch.cat((test_out, output))
             test_target = torch.cat((test_target, target))
 
-    acc = accuracy(test_out, test_target)
-    print(f"Test set accuracy: {acc}")
+    if dataset == "sent_ex":
+        acc = accuracy(test_out, test_target)
+        print(f"Test set accuracy: {acc}")
+
+    elif dataset == "sent140":
+        mae = MAE(test_out, test_target)
+        print(f"MAE: {mae.item()}")
 
     return test_out.cpu().numpy(), test_target.cpu().numpy()
 
 
 if __name__ == "__main__":
-    run_evaluation()
+    preds, targets = run_evaluation(model_file="hearty-durian-70/hearty-durian-70-epoch-1.pth", num_classes=1,
+                                    dataset="sent140")

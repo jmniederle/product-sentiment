@@ -2,7 +2,8 @@ from pathlib import Path
 
 import wandb
 from pathlib import Path
-
+import os
+from utils import get_project_root
 import torch
 import torch.nn as nn
 import wandb
@@ -10,8 +11,8 @@ from torch.optim import Adam, SGD
 from torch.utils.data import DataLoader
 from torchtext.vocab import GloVe
 
-from data_utils.tweet_dataset import TweetDataset, pad_batch
-from model import SentimentNet
+from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
+from sentiment_model.model import SentimentNet
 from sentiment_model.train import train
 
 
@@ -30,7 +31,9 @@ def run_training(
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
         save_checkpoint: bool = False,
-        dataset_name: str = "sent140"
+        dataset_name: str = "sent140",
+        wandb_logging: bool = False,
+        small_subset: int = None
 ):
     config = {"lr": lr,
               "epochs": epochs,
@@ -44,28 +47,37 @@ def run_training(
               "dropout": dropout,
               "freeze_embed": freeze_embed}
 
-    with open('wandb_user_name.txt') as f:
-        lines = f.read()
-        user_name = lines.split('\n', 1)[0]
-        print(user_name)
+    if wandb_logging:
+        try:
+            with open('wandb_user_name.txt') as f:
+                lines = f.read()
+                user_name = lines.split('\n', 1)[0]
 
-    #run = wandb.init(project="product-sentiment", entity=user_name, config=config)
-    run = None
+        except FileNotFoundError:
+            user_name == "jmniederle"
+
+
+        run = wandb.init(project="product-sentiment", entity=user_name, config=config)
+
+    else:
+        run = None
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = "cpu"
 
     # Import GloVe Embeddings
-    glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
+    # Load training dataset to build vocab
+    cache_path = os.path.join(get_project_root(), Path("sentiment_model/.vector_cache/"))
+    glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim, cache=cache_path)
 
     # Instantiate vectors and ensure a 0 vector is inserted for unknown characters and padded characters
     pre_embeds = glove_twitter.vectors
     pre_embeds = torch.cat((torch.zeros(2, pre_embeds.shape[1]), pre_embeds))
 
     # Load data:
-    train_dataset = TweetDataset(split="train", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=None)
-    valid_dataset = TweetDataset(split="valid", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=None)
+    train_dataset = TweetDataset(split="train", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=small_subset)
+    valid_dataset = TweetDataset(split="valid", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=small_subset)
 
     # Create data loaders:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)
@@ -99,4 +111,7 @@ def run_training(
           config=config)
 
 
-run_training()
+if __name__ == "__main__":
+    run_training(save_checkpoint=True, small_subset=1000, wandb_logging=False)
+
+# TODO: find out why gpu utilization is only 50% when running on gpu

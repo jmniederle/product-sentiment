@@ -1,13 +1,15 @@
 from pathlib import Path
 from typing import Dict
-
+import random
+import string
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from wandb.wandb_run import Run as RunLogger
-from data_utils.metrics import accuracy
+from data_utils.metrics import accuracy, MAE
+import numpy as np
 
 
 def train(
@@ -33,6 +35,16 @@ def train(
 
     if logging is not None:
         logging.watch(model, log="all", log_freq=logging_freq, log_graph=True)
+        log_name = logging.name
+
+    else:
+        log_name = get_run_name(num_classes)
+        # Calculate metrics
+        logging_dict = {
+            "train_loss": [],
+            "valid_loss": [],
+            "valid_score":[]
+        }
 
     best_valid_loss = float('inf')
     last_valid_loss = float('inf')
@@ -71,9 +83,15 @@ def train(
             if logging is not None:
                 logging.log(log_dict, step=step)
 
+            else:
+                logging_dict['train_loss'].append(loss.data.item())
+
         # Validation
         model.eval()
         with torch.no_grad():
+
+            valid_losses = []
+            valid_scores = []
 
             for batch_idx, (data, target, text_lengths) in enumerate(valid_loader):
 
@@ -86,37 +104,55 @@ def train(
                     target = target.unsqueeze(1).float()
 
                 loss = loss_fn(output, target)
+                valid_losses.append(loss.item())
 
-                last_valid_loss = loss.data
+                if num_classes > 1:
+                    # Calculate metrics
+                    acc = accuracy(output, target)
+                    valid_scores.append(acc.item())
 
-                # Calculate metrics
-                acc = accuracy(output, target)
-                log_dict = {"valid_loss": loss.data, "valid_acc": acc}
+                elif num_classes == 1:
 
-                if logging is not None:
-                    # Log metrics
-                    logging.log(log_dict, step=step)
+                    mae = MAE(output, target, apply_sigmoid=True)
+                    valid_scores.append(mae.item())
 
-                if save_checkpoint and (last_valid_loss < best_valid_loss) and logging is not None:
+            last_valid_loss = np.mean(valid_losses)
 
-                    # Save checkpoint if better than previous runs
-                    best_valid_loss = loss
+            log_dict = {"valid_loss": last_valid_loss, "valid_score": np.mean(valid_scores)}
 
-                    # Validate checkpoint dir
-                    if not Path(checkpoint_path / logging.name).exists():
-                        Path(checkpoint_path / logging.name).mkdir(parents=True)
+            if logging is not None:
+                # Log metrics
+                logging.log(log_dict, step=step)
 
-                    torch.save({
-                        "model_state_dict": model.state_dict(),
-                        "optimizer_state_dict": optimizer.state_dict(),
-                        "epoch": epoch,
-                        "train_metrics": None,
-                        "valid_metrics": None,
-                        "config": config,
-                    }, checkpoint_path / f"{logging.name}" / f"{logging.name}-epoch-{epoch}.pth")
+            else:
+                logging_dict['valid_loss'].append(log_dict['valid_loss'])
+                logging_dict['valid_score'].append(log_dict['valid_score'])
+
+            if save_checkpoint and (last_valid_loss < best_valid_loss):
+
+                # Save checkpoint if better than previous runs
+                best_valid_loss = last_valid_loss
+
+                # Validate checkpoint dir
+                if not Path(checkpoint_path / log_name).exists():
+                    Path(checkpoint_path / log_name).mkdir(parents=True)
+
+                torch.save({
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "epoch": epoch,
+                    "valid_loss": log_dict['valid_loss'],
+                    "valid_score": log_dict['valid_score'],
+                    "config": config,
+                }, checkpoint_path / f"{log_name}" / f"{log_name}-epoch-{epoch}.pth")
 
             # if device == "cuda":
             #     torch.cuda.empty_cache()
 
+
+def get_run_name(num_classes):
+    rand_string = ''.join(random.choices(string.ascii_uppercase, k=5))
+    run_name = f"run_{num_classes}_classes_{rand_string}"
+    return run_name
 
 # TODO: use different validation metric for sentiment140
