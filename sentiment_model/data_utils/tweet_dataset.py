@@ -1,17 +1,12 @@
 import re
 
 import torch
-import spacy
-import numpy as np
-from torchtext.datasets import AG_NEWS
-from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator, vectors, vocab, GloVe
 from datasets import load_dataset
-from torch.utils.data import Dataset, DataLoader, random_split
-from torchtext import data
-from transformers import BertTokenizer
 from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import Dataset
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator, vocab
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

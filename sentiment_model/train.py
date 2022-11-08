@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from wandb.wandb_run import Run as RunLogger
-from data_utils.metrics import accuracy, MAE
+from sentiment_model.data_utils.metrics import accuracy, MAE
 import numpy as np
 
 
