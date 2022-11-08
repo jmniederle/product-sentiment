@@ -54,7 +54,7 @@ def run_training(
                 user_name = lines.split('\n', 1)[0]
 
         except FileNotFoundError:
-            user_name == "jmniederle"
+            user_name = "jmniederle"
 
 
         run = wandb.init(project="product-sentiment", entity=user_name, config=config)
