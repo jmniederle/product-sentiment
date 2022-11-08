@@ -1,25 +1,22 @@
-from argparse import ArgumentParser
-import sys
-
 from pathlib import Path
 
-import numpy as np
 import wandb
-from torch.utils.data import DataLoader
-from torchtext.vocab import build_vocab_from_iterator, vectors, vocab, GloVe
-from torch.optim import Adam, SGD
-import torch.nn as nn
-from train import train
-import wandb as experiment_logger
+from pathlib import Path
 
 import torch
+import torch.nn as nn
+import wandb
+from torch.optim import Adam, SGD
+from torch.utils.data import DataLoader
+from torchtext.vocab import GloVe
 
 from data_utils.tweet_dataset import TweetDataset, pad_batch
 from model import SentimentNet
+from sentiment_model.train import train
 
 
 def run_training(
-        batch_size: int = 32,
+        batch_size: int = 256,
         lr: float = 0.001,
         epochs: int = 15,
         embedding_dim: int = 50,
@@ -52,11 +49,12 @@ def run_training(
         user_name = lines.split('\n', 1)[0]
         print(user_name)
 
-    run = wandb.init(project="product-sentiment", entity=user_name, config=config)
+    #run = wandb.init(project="product-sentiment", entity=user_name, config=config)
+    run = None
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = "cpu"
+    #device = "cpu"
 
     # Import GloVe Embeddings
     glove_twitter = GloVe(name="twitter.27B", dim=embedding_dim)
@@ -66,8 +64,8 @@ def run_training(
     pre_embeds = torch.cat((torch.zeros(2, pre_embeds.shape[1]), pre_embeds))
 
     # Load data:
-    train_dataset = TweetDataset(split="train", dataset=dataset_name, pretrained_vecs=glove_twitter)
-    valid_dataset = TweetDataset(split="valid", dataset=dataset_name, pretrained_vecs=glove_twitter)
+    train_dataset = TweetDataset(split="train", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=None)
+    valid_dataset = TweetDataset(split="valid", dataset=dataset_name, pretrained_vecs=glove_twitter, subset=None)
 
     # Create data loaders:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_batch)

@@ -9,6 +9,7 @@ from tqdm import tqdm
 from wandb.wandb_run import Run as RunLogger
 from data_utils.metrics import accuracy
 
+
 def train(
         model: nn.Module,
         loss_fn: nn.Module,
@@ -30,7 +31,8 @@ def train(
     model.to(device)  # In case it hasn't been sent to device yet
     p_bar = tqdm(total=len(train_loader.dataset) * epochs)
 
-    logging.watch(model, log="all", log_freq=logging_freq, log_graph=True)
+    if logging is not None:
+        logging.watch(model, log="all", log_freq=logging_freq, log_graph=True)
 
     best_valid_loss = float('inf')
     last_valid_loss = float('inf')
@@ -66,14 +68,14 @@ def train(
                                   f" | Validation loss: {last_valid_loss:.5f}")
             p_bar.update(data.shape[0])
 
-            logging.log(log_dict, step=step)
+            if logging is not None:
+                logging.log(log_dict, step=step)
 
         # Validation
         model.eval()
         with torch.no_grad():
 
             for batch_idx, (data, target, text_lengths) in enumerate(valid_loader):
-                # For assignment 3.2, we need to know the lengths of the targets
 
                 data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
 
@@ -91,27 +93,30 @@ def train(
                 acc = accuracy(output, target)
                 log_dict = {"valid_loss": loss.data, "valid_acc": acc}
 
-                # Log metrics
-                logging.log(log_dict, step=step)
+                if logging is not None:
+                    # Log metrics
+                    logging.log(log_dict, step=step)
 
-                if save_checkpoint:
+                if save_checkpoint and (last_valid_loss < best_valid_loss) and logging is not None:
 
                     # Save checkpoint if better than previous runs
-                    if loss < best_valid_loss:
-                        best_valid_loss = loss
+                    best_valid_loss = loss
 
-                        # Validate checkpoint dir
-                        if not Path(checkpoint_path / logging.name).exists():
-                            Path(checkpoint_path / logging.name).mkdir(parents=True)
-                        torch.save({
-                            "model_state_dict": model.state_dict(),
-                            "optimizer_state_dict": optimizer.state_dict(),
-                            "epoch": epoch,
-                            "train_metrics": None,
-                            "valid_metrics": None,
-                            "config": config,
-                        }, checkpoint_path / f"{logging.name}" / f"{logging.name}-epoch-{epoch}.pth")
+                    # Validate checkpoint dir
+                    if not Path(checkpoint_path / logging.name).exists():
+                        Path(checkpoint_path / logging.name).mkdir(parents=True)
 
-            if device == "cuda":
-                torch.cuda.empty_cache()
+                    torch.save({
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "epoch": epoch,
+                        "train_metrics": None,
+                        "valid_metrics": None,
+                        "config": config,
+                    }, checkpoint_path / f"{logging.name}" / f"{logging.name}-epoch-{epoch}.pth")
 
+            # if device == "cuda":
+            #     torch.cuda.empty_cache()
+
+
+# TODO: use different validation metric for sentiment140

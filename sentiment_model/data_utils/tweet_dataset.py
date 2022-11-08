@@ -19,7 +19,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class TweetDataset(Dataset):
     """Tweet Dataset """
 
-    def __init__(self, dataset="sent_ex", split="train", tokenizer=None, pretrained_vecs=None):
+    def __init__(self, dataset="sent_ex", split="train", tokenizer=None, pretrained_vecs=None, subset=None):
         """
         Create a dataset using the HuggingFace dataset tweet_sentiment_extraction.
 
@@ -33,6 +33,11 @@ class TweetDataset(Dataset):
         self.dataset_name = dataset
         self.tweet_data = self.load_data()
         self.X, self.y = self.get_split_data()
+
+        if subset is not None:
+            self.X = self.X[:subset]
+            self.y = self.y[:subset]
+
         self.filter_empty_strings()
         self.tokenizer = get_tokenizer("spacy", language="en_core_web_sm") if not tokenizer else tokenizer
         self.pretrained_vecs = pretrained_vecs
