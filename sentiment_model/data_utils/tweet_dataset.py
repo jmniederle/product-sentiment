@@ -142,11 +142,20 @@ class TweetDataset(Dataset):
                 return 0
 
         elif self.dataset_name == "sent140_multi_class":
-            if self.split == "train" or self.split == "valid":
-                return [1 if (i == 1 and y == 4) or (i == 0 and y == 0) else 0 for i in range(2)]
+            # if self.split == "train" or self.split == "valid":
+            #     return [1 if (i == 1 and y == 4) or (i == 0 and y == 0) else 0 for i in range(2)]
+            #
+            # elif self.split == "test":
+            #     return [1 if (i == 0 and y == 0) or (i == 1 and y == 2) or (i == 2 and y == 4) else 0 for i in range(3)]
+            if self.split == "test":
+                return int(y / 2)
 
-            elif self.split == "test":
-                return [1 if (i == 0 and y == 0) or (i == 1 and y == 2) or (i == 2 and y == 4) else 0 for i in range(3)]
+            elif self.split == "valid" or self.split == "train":
+                if y == 4:
+                    return 1
+
+                elif y == 0:
+                    return 0
 
     def __getitem__(self, idx):
         """
@@ -274,3 +283,6 @@ if __name__ == "__main__":
 
     train_dataset = TweetDataset(split="test", dataset="sent140_multi_class", pretrained_vecs=glove_twitter)
     print(train_dataset[0])
+
+    # train_dataset = TweetDataset(split="train", dataset="sent_ex", pretrained_vecs=None)
+    # print(train_dataset[5])

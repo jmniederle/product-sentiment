@@ -64,7 +64,7 @@ def run_training(
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = "cpu"
+    device = "cpu"
 
     # Import GloVe Embeddings
     # Load training dataset to build vocab
@@ -116,6 +116,6 @@ def run_training(
 
 
 if __name__ == "__main__":
-    run_training(save_checkpoint=True, small_subset=1000, wandb_logging=False)
+    run_training(save_checkpoint=False, small_subset=1000, wandb_logging=False)
 
 # TODO: find out why gpu utilization is only 50% when running on gpu
