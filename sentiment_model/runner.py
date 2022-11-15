@@ -64,7 +64,7 @@ def run_training(
 
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = "cpu"
+    #device = "cpu"
 
     # Import GloVe Embeddings
     # Load training dataset to build vocab
