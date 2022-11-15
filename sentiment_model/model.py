@@ -1,6 +1,8 @@
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import torch
+from torch.utils.data import DataLoader
+from sentiment_model.data_utils.tweet_dataset import pad_batch
 
 
 class SentimentNet(nn.Module):
@@ -16,6 +18,8 @@ class SentimentNet(nn.Module):
                  pretrained_embeddings=None,
                  freeze_embed=True):
         super().__init__()
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if pretrained_embeddings is not None:
             self.embedding = nn.Embedding.from_pretrained(pretrained_embeddings, sparse=False, freeze=freeze_embed)
@@ -72,6 +76,24 @@ class SentimentNet(nn.Module):
         out = self.mlp(final_hidden)
 
         return out
+
+    def predict_proba(self, X, y=None):
+        X_loader = DataLoader(X, batch_size=128, collate_fn=pad_batch, shuffle=False)
+
+        predicted_probs = torch.tensor([]).to(self.device)
+
+        self.eval()
+        with torch.no_grad():
+            for batch_idx, (data, _, text_lengths) in enumerate(X_loader):
+                data, text_lengths = data.to(self.device), text_lengths.to(self.device)
+
+                output = self(data, text_lengths)
+                output = torch.sigmoid(output)
+                predicted_probs = torch.cat((predicted_probs, output), dim=0)
+
+        return predicted_probs.cpu().numpy()
+
+
 
 
 # TODO: try using mean embedding for unknown tokens instead of zeros

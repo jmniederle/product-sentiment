@@ -89,9 +89,9 @@ def run_evaluation(
         test_targets_bin = test_targets_bin[test_targets_bin != 0.5]
 
         print(np.mean((out >= 0.5).astype(float) == test_targets_bin))
-    return test_out.cpu().numpy(), test_target.cpu().numpy()
+    return test_out.cpu().numpy(), test_target.cpu().numpy(), model
 
 
 if __name__ == "__main__":
-    preds, targets = run_evaluation(model_file="hearty-durian-70/hearty-durian-70-epoch-1.pth", num_classes=1,
+    preds, targets, model = run_evaluation(model_file="electric-surf-72/electric-surf-72-epoch-8.pth", num_classes=1,
                                     dataset="sent140")

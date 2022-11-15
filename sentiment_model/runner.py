@@ -31,7 +31,7 @@ def run_training(
         logging_freq: int = 500,
         checkpoint_path: Path = Path("checkpoints/"),
         save_checkpoint: bool = False,
-        dataset_name: str = "sent140",
+        dataset_name: str = "sent140_multi_class",
         wandb_logging: bool = False,
         small_subset: int = None
 ):
@@ -90,6 +90,10 @@ def run_training(
     elif dataset_name == "sent140":
         num_classes = 1
         loss_fn = nn.BCEWithLogitsLoss()
+
+    elif dataset_name == "sent140_multi_class":
+        num_classes = 2
+        loss_fn = nn.CrossEntropyLoss()
 
     # Initialize model
     model = SentimentNet(vocab_size=len(train_dataset.vocab), embedding_dim=embedding_dim,

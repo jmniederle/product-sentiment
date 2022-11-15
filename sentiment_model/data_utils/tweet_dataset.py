@@ -7,6 +7,10 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator, vocab
+from utils import get_project_root
+import os
+from pathlib import Path
+from torchtext.vocab import GloVe
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -42,7 +46,7 @@ class TweetDataset(Dataset):
         if self.dataset_name == "sent_ex":
             return load_dataset("SetFit/tweet_sentiment_extraction")
 
-        elif self.dataset_name == "sent140":
+        elif self.dataset_name == "sent140" or self.dataset_name == "sent140_multi_class":
             return load_dataset("sentiment140")
 
     def get_split_data(self):
@@ -51,7 +55,7 @@ class TweetDataset(Dataset):
             if self.dataset_name == "sent_ex":
                 return self.tweet_data['test']['text'], self.tweet_data['test']['label']
 
-            elif self.dataset_name == "sent140":
+            elif self.dataset_name == "sent140" or self.dataset_name == "sent140_multi_class":
                 return self.tweet_data['test']['text'], self.tweet_data['test']['sentiment']
 
         elif (self.split == "valid") or (self.split == "train"):
@@ -59,7 +63,7 @@ class TweetDataset(Dataset):
                 X_train, X_valid, y_train, y_valid = train_test_split(self.tweet_data['train']['text'],
                                                                       self.tweet_data['train']['label'],
                                                                       test_size=0.2, random_state=42)
-            elif self.dataset_name == "sent140":
+            elif self.dataset_name == "sent140" or self.dataset_name == "sent140_multi_class":
                 X_train, X_valid, y_train, y_valid = train_test_split(self.tweet_data['train']['text'],
                                                                       self.tweet_data['train']['sentiment'],
                                                                       test_size=0.2, random_state=42)
@@ -136,6 +140,13 @@ class TweetDataset(Dataset):
 
             elif y == 0:
                 return 0
+
+        elif self.dataset_name == "sent140_multi_class":
+            if self.split == "train" or self.split == "valid":
+                return [1 if (i == 1 and y == 4) or (i == 0 and y == 0) else 0 for i in range(2)]
+
+            elif self.split == "test":
+                return [1 if (i == 0 and y == 0) or (i == 1 and y == 2) or (i == 2 and y == 4) else 0 for i in range(3)]
 
     def __getitem__(self, idx):
         """
@@ -257,5 +268,9 @@ def process_token_list(tokens):
 
 
 if __name__ == "__main__":
-    train_dataset = TweetDataset(split="train", dataset="sent140", pretrained_vecs=None)
-    print(len(train_dataset))
+    # Import GloVe Embeddings
+    cache_path = os.path.join(get_project_root(), Path("sentiment_model/.vector_cache/"))
+    glove_twitter = GloVe(name="twitter.27B", dim=50, cache=cache_path)
+
+    train_dataset = TweetDataset(split="test", dataset="sent140_multi_class", pretrained_vecs=glove_twitter)
+    print(train_dataset[0])
