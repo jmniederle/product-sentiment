@@ -37,11 +37,14 @@ class CalibratedModel:
         self.fitted = False
         self.calibrator = LogisticRegression()
 
-    def fit(self, X, y):
+    def fit(self, X, y, return_model_probs=False):
         pred_prob = self.model.predict_proba(X)
         y_multi = np.array(y) + 1
         self.calibrator.fit(pred_prob, y_multi)
         self.fitted = True
+
+        if return_model_probs:
+            return pred_prob
 
     def predict_proba(self, X):
         if not self.fitted:
