@@ -77,33 +77,26 @@ class SentimentNet(nn.Module):
 
         return out
 
-    def predict_proba(self, X, y=None, return_logit=False):
+    def predict_proba(self, X, y=None):
         X_loader = DataLoader(X, batch_size=128, collate_fn=pad_batch, shuffle=False)
 
         predicted_probs = torch.tensor([]).to(self.device)
 
-        if return_logit:
-            logits = torch.tensor([]).to(self.device)
-
         self.eval()
+
+        sm = nn.Softmax(dim=1)
+
         with torch.no_grad():
             for batch_idx, (data, _, text_lengths) in enumerate(X_loader):
                 data, text_lengths = data.to(self.device), text_lengths.to(self.device)
 
                 output = self(data, text_lengths)
                 output = torch.sigmoid(output)
-                sm = nn.Softmax(dim=1)
+
                 prob_out = sm(output)
                 predicted_probs = torch.cat((predicted_probs, prob_out), dim=0)
 
-                if return_logit:
-                    logits = torch.cat((logits, output), dim=0)
-
-        if return_logit:
-            return predicted_probs.cpu().numpy(), logits.cpu().numpy()
-
-        else:
-            return predicted_probs.cpu().numpy()
+        return predicted_probs.cpu().numpy()
 
 
 
