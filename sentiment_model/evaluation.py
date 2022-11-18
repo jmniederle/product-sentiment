@@ -93,5 +93,7 @@ def run_evaluation(
 
 
 if __name__ == "__main__":
-    preds, targets, model = run_evaluation(model_file="electric-surf-72/electric-surf-72-epoch-8.pth", num_classes=1,
+    preds, targets, model = run_evaluation(model_file="electric-surf-72/electric-surf-72-epoch-8.pth", num_classes=2,
                                     dataset="sent140")
+
+    # Stellar feather is a run trained on multiclass approach sent140

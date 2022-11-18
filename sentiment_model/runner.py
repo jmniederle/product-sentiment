@@ -116,6 +116,6 @@ def run_training(
 
 
 if __name__ == "__main__":
-    run_training(save_checkpoint=False, small_subset=1000, wandb_logging=False)
+    run_training(save_checkpoint=True, small_subset=None, wandb_logging=True)
 
 # TODO: find out why gpu utilization is only 50% when running on gpu
