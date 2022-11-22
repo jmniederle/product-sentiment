@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
 
-
 def plot_calib_curve(y_true, y_pred_prob, y_pred_prob_calib=None, bins=20):
     fig, ax = plt.subplots(2,1, sharex=True, figsize=(10,10), gridspec_kw={'height_ratios':[3,1]})
     prob_true, prob_pred = calibration_curve(y_true, y_pred_prob, n_bins=bins)
@@ -59,3 +58,6 @@ class CalibratedModel:
 
         model_preds = self.model.predict_proba(X)
         return self.calibrator.predict(model_preds)
+
+
+

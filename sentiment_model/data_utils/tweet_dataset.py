@@ -171,6 +171,9 @@ class TweetDataset(Dataset):
         label = self.label_pipeline(self.y[idx])
         return torch.tensor(text), label
 
+    def get_y(self):
+        return [self[i][1] for i in range(len(self))]
+
 
 class TweetDatasetInference(Dataset):
     """Tweet Dataset """
@@ -283,6 +286,7 @@ if __name__ == "__main__":
 
     train_dataset = TweetDataset(split="test", dataset="sent140_multi_class", pretrained_vecs=glove_twitter)
     print(train_dataset[0])
+    print(train_dataset.get_y())
 
     # train_dataset = TweetDataset(split="train", dataset="sent_ex", pretrained_vecs=None)
     # print(train_dataset[5])
