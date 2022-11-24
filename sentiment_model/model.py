@@ -79,7 +79,7 @@ class SentimentNet(nn.Module):
         return out
 
     def predict_proba(self, X, multi_class=True):
-        X_loader = DataLoader(X, batch_size=128, collate_fn=pad_batch, shuffle=False)
+        X_loader = DataLoader(X, batch_size=256, collate_fn=pad_batch, shuffle=False)
 
         predicted_probs = torch.tensor([]).to(self.device)
 
@@ -88,7 +88,7 @@ class SentimentNet(nn.Module):
         sm = nn.Softmax(dim=1)
 
         with torch.no_grad():
-            for batch_idx, (data, _, text_lengths) in tqdm(enumerate(X_loader)):
+            for batch_idx, (data, _, text_lengths) in tqdm(enumerate(X_loader), total=len(X_loader)):
                 data, text_lengths = data.to(self.device), text_lengths.to(self.device)
 
                 output = self(data, text_lengths)
