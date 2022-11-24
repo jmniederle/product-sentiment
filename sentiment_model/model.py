@@ -3,6 +3,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import torch
 from torch.utils.data import DataLoader
 from sentiment_model.data_utils.tweet_dataset import pad_batch
+from tqdm import tqdm
 
 
 class SentimentNet(nn.Module):
@@ -77,7 +78,7 @@ class SentimentNet(nn.Module):
 
         return out
 
-    def predict_proba(self, X, y=None):
+    def predict_proba(self, X, multi_class=True):
         X_loader = DataLoader(X, batch_size=128, collate_fn=pad_batch, shuffle=False)
 
         predicted_probs = torch.tensor([]).to(self.device)
@@ -87,13 +88,18 @@ class SentimentNet(nn.Module):
         sm = nn.Softmax(dim=1)
 
         with torch.no_grad():
-            for batch_idx, (data, _, text_lengths) in enumerate(X_loader):
+            for batch_idx, (data, _, text_lengths) in tqdm(enumerate(X_loader)):
                 data, text_lengths = data.to(self.device), text_lengths.to(self.device)
 
                 output = self(data, text_lengths)
-                output = torch.sigmoid(output)
+                #output = torch.sigmoid(output)
 
-                prob_out = sm(output)
+                if multi_class:
+                    prob_out = sm(output)
+
+                else:
+                    prob_out = torch.sigmoid(output)
+
                 predicted_probs = torch.cat((predicted_probs, prob_out), dim=0)
 
         return predicted_probs.cpu().numpy()

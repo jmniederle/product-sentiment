@@ -10,12 +10,12 @@ from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
 from sentiment_model.model import SentimentNet
 from utils import get_project_root
 import numpy as np
+from sentiment_model.model_calibration import predict, CalibratedModel
+import torch.nn as nn
 
 
 def run_evaluation(
         batch_size: int = 16,
-        lr: float = 0.001,
-        epochs: int = 15,
         embedding_dim: int = 50,
         hidden_dim: int = 256,
         n_layers: int = 2,
@@ -24,7 +24,8 @@ def run_evaluation(
         dropout: float = 0.5,
         freeze_embed: bool = False,
         model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth",
-        dataset="sent_ex"
+        dataset="sent_ex",
+        decision_bound=None,
 ):
 
     # Set device:
@@ -40,6 +41,7 @@ def run_evaluation(
 
     # Load data:
     test_dataset = TweetDataset(dataset=dataset, split="test", pretrained_vecs=glove_twitter)
+    valid_dataset = TweetDataset(split="valid", dataset="sent140_multi_class", pretrained_vecs=glove_twitter)
 
     # Create data loaders:
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=pad_batch)
@@ -59,37 +61,52 @@ def run_evaluation(
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
 
-    test_out = torch.tensor([]).to(device)
-    test_target = torch.tensor([]).to(device)
-
-    # Validation
-    model.eval()
-    with torch.no_grad():
-        for batch_idx, (data, target, text_lengths) in enumerate(test_loader):
-            data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
-
-            # Forward pass
-            output = model(data, text_lengths)
-            output = torch.sigmoid(output)
-            test_out = torch.cat((test_out, output))
-            test_target = torch.cat((test_target, target))
-
     if dataset == "sent_ex":
+        test_out = torch.tensor([]).to(device)
+        test_target = torch.tensor([]).to(device)
+        model.eval()
+        with torch.no_grad():
+            for batch_idx, (data, target, text_lengths) in enumerate(test_loader):
+                data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
+
+                # Forward pass
+                output = model(data, text_lengths)
+                output = torch.sigmoid(output)
+                test_out = torch.cat((test_out, output))
+                test_target = torch.cat((test_target, target))
+
+        acc = accuracy(test_out, test_target)
+        print(f"Test set accuracy: {acc}")
+        return test_out.cpu().numpy(), test_target.cpu().numpy(), model
+
+    elif dataset == "sent140":
+
+        print("Calibrating model")
+
+        # Calibrate model
+        CM = CalibratedModel(model)
+        CM.fit(valid_dataset, valid_dataset.get_y())
+
+        sm = nn.Softmax(dim=1)
+        test_out = torch.tensor([]).to(device)
+
+        # model.eval()
+        # with torch.no_grad():
+        #     for batch_idx, (data, target, text_lengths) in enumerate(test_loader):
+        #         data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
+        #
+        #         # Forward pass
+        #         output = model(data, text_lengths)
+        #         prob_out = sm(output)
+        #         test_out = torch.cat((test_out, prob_out))
+        #         test_target = torch.cat((test_target, target))
+        test_target = torch.tensor(test_dataset.get_y()).to(device)
+        test_out = torch.tensor(predict(CM, test_dataset, decision_bound)).to(device)
+
         acc = accuracy(test_out, test_target)
         print(f"Test set accuracy: {acc}")
 
-    elif dataset == "sent140":
-        mae = MAE(test_out, test_target)
-        print(f"MAE: {mae.item()}")
-        test_targets_bin = test_target.cpu().numpy()
-
-        out = test_out.cpu().reshape(-1).numpy()
-        out = out[test_targets_bin != 0.5]
-
-        test_targets_bin = test_targets_bin[test_targets_bin != 0.5]
-
-        print(np.mean((out >= 0.5).astype(float) == test_targets_bin))
-    return test_out.cpu().numpy(), test_target.cpu().numpy(), model
+        return test_out.cpu().numpy(), test_target.cpu().numpy(), model, CM
 
 
 if __name__ == "__main__":
