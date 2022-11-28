@@ -14,6 +14,7 @@ from sentiment_model.model_calibration import predict, CalibratedModel
 import torch.nn as nn
 from sklearn.metrics import accuracy_score
 from utils import pickle_save
+import time
 
 
 def run_evaluation(
@@ -22,7 +23,7 @@ def run_evaluation(
         hidden_dim: int = 256,
         n_layers: int = 2,
         bidirectional: bool = True,
-        num_classes: int = 3,
+        num_classes: int = 2,
         dropout: float = 0.5,
         freeze_embed: bool = False,
         model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth",
@@ -47,13 +48,13 @@ def run_evaluation(
 
     # Create data loaders:
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=pad_batch)
-
+    print("datasets loaded")
     checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
     model_path = os.path.join(checkpoint_path, Path(model_file))
 
     # Load checkpoint:
     checkpoint = torch.load(model_path)
-
+    print("checkpoint loaded")
     if not load_calib_model:
         # Initialize model
         model = SentimentNet(vocab_size=len(test_dataset.vocab), embedding_dim=embedding_dim,
@@ -83,32 +84,35 @@ def run_evaluation(
         return test_out.cpu().numpy(), test_target.cpu().numpy(), model
 
     elif dataset == "sent140_multi_class":
-        valid_y = valid_dataset.get_y()
         calib_save_folder = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/calibrated_model/"))
 
         if load_calib_model:
             model_args = {"vocab_size": len(test_dataset.vocab), "embedding_dim": embedding_dim,
                           "rnn_hidden_dim": hidden_dim, "rnn_n_layers": n_layers, "rnn_bidirectional": bidirectional,
-                          "dropout_rate": dropout, "num_classes": num_classes, "pretrained_embeddings": pre_embeds,
+                          "dropout_rate": dropout, "num_classes": num_classes, "pretrained_embeddings": None, #pre_embeds,
                           "freeze_embed": freeze_embed}
 
             print("Loading calibrated model")
+            time1 = time.time()
             CM = CalibratedModel(None)
             CM.load(calib_save_folder, model_args)
-
+            time2 = time.time()
+            print(f"Loading calibrated model loading took {time2 - time1} seconds")
         else:
+            valid_y = valid_dataset.get_y()
             # Calibrate model
             print("Calibrating model")
             CM = CalibratedModel(model)
             CM.fit(valid_dataset, valid_y)
             print(calib_save_folder)
             CM.save(calib_save_folder)
-
+        time1 = time.time()
         test_target = torch.tensor(test_dataset.get_y()).to(device)
         test_out = torch.tensor(predict(CM, test_dataset, decision_bound)).to(device)
 
         test_out, test_target = test_out.cpu().numpy(), test_target.cpu().numpy()
-
+        time2 = time.time()
+        print(f"Predicting took {time2 - time1} seconds")
         acc = accuracy_score(test_out, test_target)
         print(f"Test set accuracy: {acc}")
 
@@ -125,3 +129,4 @@ if __name__ == "__main__":
                                         dataset="sent140_multi_class", decision_bound=(0.5208333333333334, 0.625),
                                         load_calib_model=True)
     # Stellar feather is a run trained on multiclass approach sent140
+    # TODO: find out what is taking so long with running eval

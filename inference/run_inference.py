@@ -38,7 +38,19 @@ def run_inference(model, data_loader, device):
     return np.array(results)
 
 
-def scrape_and_predict(keyword="Milk", start_date="2020-01-30", end_date="now", max_tweets=1000):
+# TODO: update scrape and predict functionality to match updated model/predict function
+def scrape_and_predict(keyword="Milk", start_date="2020-01-30", end_date="now", max_tweets=1000, use_calib_model=True,
+                       model_args=None):
+
+    if model_args is None:
+        model_args = {"vocab_size": 1193516, "embedding_dim": 50, "rnn_hidden_dim": 256, "rnn_n_layers": 2,
+                      "rnn_bidirectional": True, "dropout_rate": 0.5, "num_classes": 2, "pretrained_embeddings": None,
+                      "freeze_embed": True}
+
+    if use_calib_model:
+        load_model_for_inference()
+
+
     # Set device and load pretrained model
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     sentiment_net = load_model_for_inference(model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth", device=device)

@@ -6,17 +6,28 @@ import numpy as np
 from utils import get_project_root
 from pathlib import Path
 import os
+from sentiment_model.model_calibration import CalibratedModel
 
 
-def load_model_for_inference(model_file, device="cpu"):
-    checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
-    model_path = os.path.join(checkpoint_path, Path(model_file))
-    checkpoint = torch.load(model_path)
-    sentiment_net = SentimentNet(vocab_size=1193516, embedding_dim=50)
-    sentiment_net.load_state_dict(checkpoint['model_state_dict'])
-    sentiment_net.to(device)
-    sentiment_net.eval()
-    return sentiment_net
+def load_model_for_inference(model_file=None, model_args=None, device="cpu", calibrated=False):
+    if not calibrated:
+        checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
+        model_path = os.path.join(checkpoint_path, Path(model_file))
+        checkpoint = torch.load(model_path)
+        sentiment_net = SentimentNet(**model_args)
+        sentiment_net.load_state_dict(checkpoint['model_state_dict'])
+        sentiment_net.to(device)
+        sentiment_net.eval()
+        return sentiment_net
+
+    else:
+        calib_save_folder = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/calibrated_model/"))
+        if model_file is not None:
+            calib_save_folder = os.path.join(calib_save_folder, Path(model_file))
+
+        CM = CalibratedModel(None)
+        CM.load(calib_save_folder, model_args)
+        return CM
 
 
 def run_inference(model, data_loader, device='cpu'):
