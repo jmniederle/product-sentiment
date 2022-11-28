@@ -5,6 +5,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn.model_selection import KFold
 from torch.utils.data import Subset
+import torch
+from utils import pickle_load, pickle_save
+from sentiment_model.model import SentimentNet
+import os
 
 
 def plot_calib_curve(y_true, y_pred_prob, y_pred_prob_calib=None, bins=20):
@@ -62,6 +66,31 @@ class CalibratedModel:
 
         model_preds = self.model.predict_proba(X)
         return self.calibrator.predict(model_preds)
+
+    def save(self, save_folder):
+        if not self.fitted:
+            raise Exception("Calibrator not fitted!")
+
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        torch.save({
+            "model_state_dict": self.model.state_dict(),
+        }, save_folder + "/cm_sentiment_net.pth")
+
+        pickle_save(self.calibrator, save_folder + "/calibrator.p")
+
+    def load(self, save_folder, model_args):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.calibrator = pickle_load(save_folder + "/calibrator.p")
+
+        # Initialize model
+        self.model = SentimentNet(**model_args)
+        checkpoint = torch.load(save_folder + "/cm_sentiment_net.pth")
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.to(device)
+        self.fitted = True
 
 
 def one_hot_to_1d(arr):

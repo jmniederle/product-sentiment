@@ -26,9 +26,9 @@ def run_evaluation(
         dropout: float = 0.5,
         freeze_embed: bool = False,
         model_file="vivid-thunder-47/vivid-thunder-47-epoch-7.pth",
-        dataset="sent_ex",
+        dataset="sent140_multi_class",
         decision_bound=None,
-        calib_model_path=None
+        load_calib_model=True
 ):
     # Set device:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -54,14 +54,15 @@ def run_evaluation(
     # Load checkpoint:
     checkpoint = torch.load(model_path)
 
-    # Initialize model
-    model = SentimentNet(vocab_size=len(test_dataset.vocab), embedding_dim=embedding_dim,
-                         rnn_hidden_dim=hidden_dim, rnn_n_layers=n_layers, rnn_bidirectional=bidirectional,
-                         dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds,
-                         freeze_embed=freeze_embed)
+    if not load_calib_model:
+        # Initialize model
+        model = SentimentNet(vocab_size=len(test_dataset.vocab), embedding_dim=embedding_dim,
+                             rnn_hidden_dim=hidden_dim, rnn_n_layers=n_layers, rnn_bidirectional=bidirectional,
+                             dropout_rate=dropout, num_classes=num_classes, pretrained_embeddings=pre_embeds,
+                             freeze_embed=freeze_embed)
 
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.to(device)
 
     if dataset == "sent_ex":
         test_out = torch.tensor([]).to(device)
@@ -83,11 +84,25 @@ def run_evaluation(
 
     elif dataset == "sent140_multi_class":
         valid_y = valid_dataset.get_y()
-        print("Calibrating model")
+        calib_save_folder = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/calibrated_model/"))
 
-        # Calibrate model
-        CM = CalibratedModel(model)
-        CM.fit(valid_dataset, valid_y)
+        if load_calib_model:
+            model_args = {"vocab_size": len(test_dataset.vocab), "embedding_dim": embedding_dim,
+                          "rnn_hidden_dim": hidden_dim, "rnn_n_layers": n_layers, "rnn_bidirectional": bidirectional,
+                          "dropout_rate": dropout, "num_classes": num_classes, "pretrained_embeddings": pre_embeds,
+                          "freeze_embed": freeze_embed}
+
+            print("Loading calibrated model")
+            CM = CalibratedModel(None)
+            CM.load(calib_save_folder, model_args)
+
+        else:
+            # Calibrate model
+            print("Calibrating model")
+            CM = CalibratedModel(model)
+            CM.fit(valid_dataset, valid_y)
+            print(calib_save_folder)
+            CM.save(calib_save_folder)
 
         test_target = torch.tensor(test_dataset.get_y()).to(device)
         test_out = torch.tensor(predict(CM, test_dataset, decision_bound)).to(device)
@@ -97,17 +112,16 @@ def run_evaluation(
         acc = accuracy_score(test_out, test_target)
         print(f"Test set accuracy: {acc}")
 
-        if calib_model_path is not None:
-            calib_save_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
-            calib_save_path = os.path.join(calib_save_path, calib_model_path)
-            pickle_save(CM, calib_save_path)
+        # if calib_model_path is not None:
+        #     calib_save_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
+        #     calib_save_path = os.path.join(calib_save_path, calib_model_path)
+        #     pickle_save(CM, calib_save_path)
 
-        return test_out, test_target, model, CM
+        return test_out, test_target, CM
 
 
 if __name__ == "__main__":
-    preds, targets, CM, model = run_evaluation(model_file="lemon-forest-81/lemon-forest-81-epoch-1.pth", num_classes=2,
-                                               dataset="sent140_multi_class",
-                                               decision_bound=(0.5208333333333334, 0.625))
-
+    preds, targets, CM = run_evaluation(model_file="lemon-forest-81/lemon-forest-81-epoch-1.pth", num_classes=2,
+                                        dataset="sent140_multi_class", decision_bound=(0.5208333333333334, 0.625),
+                                        load_calib_model=True)
     # Stellar feather is a run trained on multiclass approach sent140
