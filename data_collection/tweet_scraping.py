@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 
 def get_tweets(keyword, start_date, end_date, lang='en', max_tweets=1000):
-    attributes = ['id', 'date', 'rawContent', 'sourceLabel', 'user']
+    attributes = ['id', 'date', 'content', 'sourceLabel', 'user']
     tweet_list = []
 
     # can use from: since: lang: until:

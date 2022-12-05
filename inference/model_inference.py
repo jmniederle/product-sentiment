@@ -9,8 +9,8 @@ import os
 from sentiment_model.model_calibration import CalibratedModel
 
 
-def load_model_for_inference(model_file=None, model_args=None, device="cpu", calibrated=False):
-    if not calibrated:
+def load_model_for_inference(model_file=None, model_args=None, device="cpu", use_calibrated=True):
+    if not use_calibrated:
         checkpoint_path = os.path.join(get_project_root(), Path("sentiment_model/checkpoints/"))
         model_path = os.path.join(checkpoint_path, Path(model_file))
         checkpoint = torch.load(model_path)
@@ -38,7 +38,7 @@ def run_inference(model, data_loader, device='cpu'):
 
     with torch.no_grad():
         p_bar = tqdm(total=len(data_loader.dataset))
-        for batch_idx, (data, text_lengths) in enumerate(data_loader):
+        for batch_idx, (data, _, text_lengths) in enumerate(data_loader):
             # For assignment 3.2, we need to know the lengths of the targets
 
             data, text_lengths = data.to(device), text_lengths.to(device)

@@ -215,7 +215,7 @@ class TweetDatasetInference(Dataset):
         """
 
         text = self.text_pipeline(self.X[idx])
-        return torch.tensor(text)
+        return torch.tensor(text), -1
 
 
 def pad_batch(tweet_batch):
