@@ -14,7 +14,7 @@ from torchtext.vocab import GloVe
 from sentiment_model.data_utils.tweet_dataset import TweetDataset, pad_batch
 from sentiment_model.model import SentimentNet
 from sentiment_model.train import train
-
+from torchinfo import summary
 
 def run_training(
         batch_size: int = 256,
@@ -116,6 +116,6 @@ def run_training(
 
 
 if __name__ == "__main__":
-    run_training(save_checkpoint=True, small_subset=None, wandb_logging=True)
+    run_training(save_checkpoint=False, small_subset=1000, wandb_logging=False)
 
 # TODO: find out why gpu utilization is only 50% when running on gpu

@@ -10,6 +10,7 @@ from tqdm import tqdm
 from wandb.wandb_run import Run as RunLogger
 from sentiment_model.data_utils.metrics import accuracy, MAE
 import numpy as np
+from torchinfo import summary
 
 
 def train(
@@ -57,6 +58,8 @@ def train(
             step += 1
 
             data, target, text_lengths = data.to(device), target.to(device), text_lengths.to(device)
+
+            #print(summary(model, input_data=[data, text_lengths]))
 
             # Forward pass
             output = model(data, text_lengths)

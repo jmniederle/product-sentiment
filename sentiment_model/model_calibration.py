@@ -35,7 +35,7 @@ def plot_calib_curve(y_true, y_pred_prob, y_pred_prob_calib=None, bins=20):
 
     ax[1].set_xlabel("Mean predicted probability")
     ax[1].set_ylabel("Count")
-    return
+    return fig
 
 
 class CalibratedModel:

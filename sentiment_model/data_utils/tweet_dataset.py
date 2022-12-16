@@ -274,9 +274,6 @@ def tokenize(x, tokenizer=None, lower=True):
 def process_token_list(tokens):
     return [process_token(t) for t in tokens]
 
-# TODO: verify dataset with and without pretrained GLove is working
-# TODO: add sentiment140 to dataset and retrain model
-# TODO: make Dutch sentiment model
 
 
 if __name__ == "__main__":
